@@ -1,0 +1,17 @@
+# Core Deep Learning
+torch
+
+# NLP & Dataset
+torchtext
+spacy
+
+# Numerical & Utils
+numpy
+tqdm
+
+# Evaluation
+sacrebleu
+
+# Visualization (for results & ablations)
+matplotlib
+seaborn
