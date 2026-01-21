@@ -20,4 +20,34 @@ class ScaledDotProductAttention(nn.Module):
 class MultiHeadAttention(nn.Module):
     def __init__(self, d_model, num_heads):
         super().__init__()
-        assert d_model
+        assert d_model % num_heads == 0   # Perfect divisibility should be their
+
+        self.d_model = d_model
+        self.num_heads = num_heads
+        self.head_dim = d_model // num_heads
+
+        self.W_q = nn.Linear(d_model, d_model) 
+        self.W_k = nn.Linear(d_model, d_model) 
+        self.W_v = nn.Linear(d_model, d_model) 
+        self.W_o = nn.Linear(d_model, d_model) 
+
+        self.attention = ScaledDotProductAttention()
+
+    def split_heads(self, x):
+        batch_size, seq_len, d_model = x.size()
+        return x.view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1,2)
+    
+    def combine_heads(self, x):
+        batch_size, seq_len, d_model = x.size()
+        return x.transpose(1,2).contiguous().view(batch_size, seq_len, self.d_model)
+    
+    def forward(self, Q, K, V, mask=None):
+        Q = self.split_heads(self.W_q(Q))
+        K = self.split_heads(self.W_k(K))
+        V = self.split_heads(self.W_v(V))
+
+        x, attention = self.attention(Q, K, V, mask)
+
+        x = self.combine_heads(x)
+        x = self.W_o(x)
+        return x, attention
