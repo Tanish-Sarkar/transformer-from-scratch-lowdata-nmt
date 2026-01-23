@@ -38,8 +38,10 @@ class MultiHeadAttention(nn.Module):
         return x.view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1,2)
     
     def combine_heads(self, x):
-        batch_size, seq_len, d_model = x.size()
-        return x.transpose(1,2).contiguous().view(batch_size, seq_len, self.d_model)
+        batch_size, num_heads, seq_len, head_dim = x.size()
+        x = x.transpose(1, 2)  # (batch, seq_len, heads, head_dim)
+        return x.contiguous().view(batch_size, seq_len, self.d_model)
+
     
     def forward(self, Q, K, V, mask=None):
         Q = self.split_heads(self.W_q(Q))

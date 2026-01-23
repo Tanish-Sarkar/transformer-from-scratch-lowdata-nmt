@@ -1,12 +1,14 @@
 import torch 
 import torch.nn as nn
 import torch.nn. functional as F
-from model.attention import MutliHeadAttention
+from model.attention import MultiHeadAttention
+from model.positional_encoding import PositionalEncoding
+
 
 class EncoderLayer(nn.Module):
     def __init__(self, d_model, num_heads, d_ff, dropout=0.1):
         super().__init__()
-        self.self_attention = MutliHeadAttention(d_model, num_heads)
+        self.self_attention = MultiHeadAttention(d_model, num_heads)
         self.feed_forward = nn.Sequential(
             nn.Linear(d_model, d_ff),
             nn.ReLU(),
@@ -45,7 +47,7 @@ class Encoder(nn.Module):
     ):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, d_model)
-        self.positional_encoding = None
+        self.positional_encoding = PositionalEncoding(d_model, max_len)
 
         self.layers = nn.ModuleList([EncoderLayer(d_model, num_heads, d_ff, dropout) 
                                      for _ in range(num_layers)])
@@ -58,6 +60,7 @@ class Encoder(nn.Module):
         src: (batch, src_seq_len)
         """
         x = self.embedding(src) * (self.d_model ** 0.5)
+        x = self.positional_encoding(x)
         x = self.dropout(x)
 
         for layer in self.layers:

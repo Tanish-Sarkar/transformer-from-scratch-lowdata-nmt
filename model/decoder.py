@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from model.attention import MultiHeadAttention
 import math
-
+from model.positional_encoding import PositionalEncoding
 
 class DecoderLayer(nn.Module):
     def __init__(self, d_model,num_heads, d_ff, dropout=0.1):
@@ -39,6 +39,8 @@ class DecoderLayer(nn.Module):
         ff_output = self.feed_forward(x)
         x = self.norm3(x + self.dropout(ff_output))
 
+        return x
+
 
 class Decoder(nn.Module):
     def __init__(
@@ -53,7 +55,7 @@ class Decoder(nn.Module):
     ):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, d_model)
-        self.positional_encoding = None
+        self.positional_encoding = PositionalEncoding(d_model, max_len)
 
         self.layers = nn.ModuleList([
             DecoderLayer(d_model, num_heads, d_ff, dropout) 
@@ -67,7 +69,8 @@ class Decoder(nn.Module):
         """
         tgt: (batch, tgt_seq_len)
         """
-        x = self.embedding(tgt) * math.sqrt(self.d_model)
+        x = self.embedding(tgt) * (self.d_model ** 0.5)
+        x = self.positional_encoding(x)
         x = self.dropout(x)
 
         for layer in self.layers:

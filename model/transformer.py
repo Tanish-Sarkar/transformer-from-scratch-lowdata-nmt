@@ -15,17 +15,22 @@ def make_src_mask(src, pad_idx):
 def make_tgt_mask(tgt, pad_idx):
     """
     tgt: (batch, tgt_len)
-    returns: (batch, 1, tgt_len, tgt_len)
+    return: (batch, 1, tgt_len, tgt_len)
     """
     batch_size, tgt_len = tgt.size()
 
-    # Padding Mask
-    tgt_pad_mask = (tgt != pad_idx).unsqueeze(1).unsqueeze(2)
+    # Padding mask
+    pad_mask = (tgt != pad_idx).unsqueeze(1).unsqueeze(2)
+    # (batch, 1, 1, tgt_len)
 
-    # mask
-    causal_mask = torch.tril(torch.ones((tgt_len, tgt_len), device= tgt.device)).bool()
+    # Causal mask
+    causal_mask = torch.tril(
+        torch.ones((tgt_len, tgt_len), device=tgt.device)
+    ).bool()
+    # (tgt_len, tgt_len)
 
-    return tgt_pad_mask & causal_mask
+    return pad_mask & causal_mask
+
 
 
 class Transformer(nn.Module):
@@ -77,20 +82,10 @@ class Transformer(nn.Module):
         tgt_mask = make_tgt_mask(tgt, self.tgt_pad_idx)
 
         # Encoder
-        enc_embed = self.encoding.embedding(src) * (self.encoder.d_model ** 0.5)
-        enc_embed = self.positional_encoding(enc_embed)
-        enc_output = enc_embed
+        enc_output = self.encoder(src, src_mask)
         
-        for layer in self.encoder.layers:
-            enc_output = layer(enc_output, src_mask)
-
         # Decoder
-        dec_embed = self.decoder.embedding(tgt) * (self.decoder.d_model ** 0.5)
-        dec_embed = self.positional_encoding(dec_embed)
-        dec_output = dec_embed
-
-        for layer in self.decoder.layers:
-            dec_output = layer(dec_output, enc_output, tgt_mask, src_mask)
+        dec_output = self.decoder(tgt, enc_output, tgt_mask, src_mask)
 
         logits = self.fc_out(dec_output)
         return logits
