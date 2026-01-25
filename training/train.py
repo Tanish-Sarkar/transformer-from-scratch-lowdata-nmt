@@ -1,3 +1,9 @@
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+
 import torch
 import torch.optim as optim
 from tqdm import tqdm
@@ -40,7 +46,7 @@ model = Transformer(
 ).to(DEVICE)
 
 
-optimizers = optim.Adam(
+optimizer = optim.Adam(
     model.parameters(),
     betas=(0.9, 0.98),
     eps=1e-9
@@ -51,5 +57,58 @@ scheduler = TransformerLRScheduler(
     d_model=D_MODEL,
     warmup_steps=WARMUP_STEPS
 )
-
 criterion = get_loss(TGT_PAD_IDX)
+
+def train_one_epoch(model, dataloader):
+    model.train()
+    total_loss = 0 
+    
+    for src, tgt in tqdm(dataloader):
+        optimizer.zero_grad()
+
+        tgt_input = tgt[:, :-1]
+        tgt_output = tgt[:, :-1]
+
+        logits = model(src, tgt_input)
+        loss = criterion(logits.reshpae(-1, logits.size(-1)), tgt_output.reshape(-1))
+
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+
+        optimizer.step()
+        scheduler.step()
+
+        total_loss += loss.item()
+
+    return total_loss / len(dataloader) 
+
+
+def evaluate(model, dataloader):
+    model.eval()
+    total_loss = 0
+    with torch.no_grad():
+        for src,tgt in dataloader:
+            tgt_input = tgt[:,:-1]
+            tgt_output = tgt[:,1:]
+
+            logits = model(src, tgt_input)
+
+            loss = criterion(
+                logits.reshape(-1, logits.size(-1)),
+                tgt_output.reshape(-1)
+            ) 
+
+            total_loss += loss.item()
+
+    return total_loss / len(dataloader)
+
+
+for epoch in range(EPOCHS):
+    train_loss = train_one_epoch(model, train_loader)
+    val_loss = evaluate(model, valid_loader)
+
+    print(
+        f"Epoch {epoch+1}/{EPOCHS} | "
+        f"Train Loss: {train_loss:.3f} | "
+        f"Val Loss: {val_loss:.3f}"
+    )
